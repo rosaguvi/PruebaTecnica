@@ -1,5 +1,5 @@
 
-# PruebasBBVA - Microservicios con Docker y Swagger
+# Prueba Tecnica - Microservicios Spring
 
 Este repositorio contiene dos microservicios Java:
 
