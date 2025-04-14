@@ -1,0 +1,167 @@
+package com.bbva.servicioconversiondivisas.services;
+
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.RestTemplate;
+
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasResponse;
+import com.bbva.servicioconversiondivisas.dtos.ExchangeRateApiResponse;
+import com.bbva.servicioconversiondivisas.dtos.ErrorResponse;
+
+@ExtendWith(MockitoExtension.class)
+public class ConvertirDivisasServiceTest {
+
+    @Mock
+    private RestTemplate restTemplate;
+    
+    @InjectMocks
+    private ConvertirDivisasService service;
+    
+    private String apiUrl = "http://fakeapi.com/api?access_key=XXXX";
+    private String divisaBase = "EUR";
+    
+    @BeforeEach
+    public void setUp() {
+        // Inyectar los valores de propiedades en el servicio usando ReflectionTestUtils
+        ReflectionTestUtils.setField(service, "apiUrl", apiUrl);
+        ReflectionTestUtils.setField(service, "divisaBase", divisaBase);
+    }
+    
+    @Test
+    public void testConvertirDivisas_MonedaOrigenBase() {
+        // Caso: monedaOrigen es la divisa base ("EUR") y se requiere convertir a "USD"
+        String monedaDestino = "USD";
+        BigDecimal monto = new BigDecimal("100");
+        BigDecimal tasaConversion = new BigDecimal("2"); // Supongamos 1 EUR = 2 USD
+        
+        ExchangeRateApiResponse responseMock = new ExchangeRateApiResponse();
+        Map<String, BigDecimal> rates = new HashMap<>();
+        rates.put(monedaDestino, tasaConversion);
+        responseMock.setRates(rates);
+        
+        // Simular que la API retorna la respuesta esperada para "USD"
+        when(restTemplate.getForObject(apiUrl + "&symbols=" + monedaDestino, ExchangeRateApiResponse.class))
+            .thenReturn(responseMock);
+        
+        ConvertirDivisasResponse conversion = service.convertirDivisas(monto, "EUR", monedaDestino);
+        
+        assertNotNull(conversion);
+        assertEquals(monto, conversion.getMontoOriginal());
+        assertEquals(tasaConversion, conversion.getTasaConversion());
+        BigDecimal expectedMontoResultado = monto.multiply(tasaConversion).setScale(2, RoundingMode.HALF_UP);
+        assertEquals(expectedMontoResultado, conversion.getMontoResultado());
+        assertEquals(LocalDate.now(), conversion.getFechaConversion());
+    }
+    
+    @Test
+    public void testConvertirDivisas_MonedaDestinoBase() {
+        // Caso: monedaDestino es la divisa base ("EUR") y se requiere convertir desde "USD"
+        String monedaOrigen = "USD";
+        BigDecimal monto = new BigDecimal("100");
+        BigDecimal tasaConversionOrigen = new BigDecimal("2"); // Supongamos 1 EUR = 2 USD -> tasa inversa = 0.5
+        
+        ExchangeRateApiResponse responseMock = new ExchangeRateApiResponse();
+        Map<String, BigDecimal> rates = new HashMap<>();
+        rates.put(monedaOrigen, tasaConversionOrigen);
+        responseMock.setRates(rates);
+        
+        when(restTemplate.getForObject(apiUrl + "&symbols=" + monedaOrigen, ExchangeRateApiResponse.class))
+            .thenReturn(responseMock);
+        
+        ConvertirDivisasResponse conversion = service.convertirDivisas(monto, monedaOrigen, "EUR");
+        
+        assertNotNull(conversion);
+        assertEquals(monto, conversion.getMontoOriginal());
+        BigDecimal expectedTasaConversion = BigDecimal.ONE.divide(tasaConversionOrigen, 16, RoundingMode.HALF_UP);
+        assertEquals(expectedTasaConversion, conversion.getTasaConversion());
+        BigDecimal expectedMontoResultado = monto.multiply(expectedTasaConversion).setScale(2, RoundingMode.HALF_UP);
+        assertEquals(expectedMontoResultado, conversion.getMontoResultado());
+    }
+    
+    @Test
+    public void testConvertirDivisas_IndirectConversion() {
+        // Caso: ninguna moneda es la divisa base: Ejemplo, convertir de "USD" a "COP" cuando la divisa base es "EUR".
+        String monedaOrigen = "USD";
+        String monedaDestino = "COP";
+        BigDecimal monto = new BigDecimal("100");
+        BigDecimal tasaConversionOrigen = new BigDecimal("2");    // Supongamos: 1 EUR = 2 USD
+        BigDecimal tasaConversionDestino = new BigDecimal("3000"); // Supongamos: 1 EUR = 3000 COP
+        
+        // Preparamos la respuesta para la conversión de USD (origen)
+        ExchangeRateApiResponse responseOrigen = new ExchangeRateApiResponse();
+        Map<String, BigDecimal> ratesOrigen = new HashMap<>();
+        ratesOrigen.put(monedaOrigen, tasaConversionOrigen);
+        responseOrigen.setRates(ratesOrigen);
+        
+        // Preparamos la respuesta para la conversión de COP (destino)
+        ExchangeRateApiResponse responseDestino = new ExchangeRateApiResponse();
+        Map<String, BigDecimal> ratesDestino = new HashMap<>();
+        ratesDestino.put(monedaDestino, tasaConversionDestino);
+        responseDestino.setRates(ratesDestino);
+        
+        when(restTemplate.getForObject(apiUrl + "&symbols=" + monedaOrigen, ExchangeRateApiResponse.class))
+            .thenReturn(responseOrigen);
+        when(restTemplate.getForObject(apiUrl + "&symbols=" + monedaDestino, ExchangeRateApiResponse.class))
+            .thenReturn(responseDestino);
+        
+        ConvertirDivisasResponse conversion = service.convertirDivisas(monto, monedaOrigen, monedaDestino);
+        
+        assertNotNull(conversion);
+        // Cálculo: (1 / tasaConversionOrigen) * tasaConversionDestino = (1/2) * 3000 = 1500
+        BigDecimal expectedTasaConversion = BigDecimal.ONE.divide(tasaConversionOrigen, 16, RoundingMode.HALF_UP)
+                                                      .multiply(tasaConversionDestino);
+        assertEquals(expectedTasaConversion, conversion.getTasaConversion());
+        BigDecimal expectedMontoResultado = monto.multiply(expectedTasaConversion).setScale(2, RoundingMode.HALF_UP);
+        assertEquals(expectedMontoResultado, conversion.getMontoResultado());
+    }
+    
+    @Test
+    public void testConvertirDivisas_InvalidInputs() {
+        // Verifica que se lanzan excepciones en caso de parámetros de entrada inválidos.
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> service.convertirDivisas(null, "USD", "EUR"));
+        assertEquals("El monto debe ser mayor que cero.", ex.getMessage());
+        
+        ex = assertThrows(IllegalArgumentException.class,
+            () -> service.convertirDivisas(new BigDecimal("100"), "", "EUR"));
+        assertEquals("El código de la moneda de origen es obligatorio", ex.getMessage());
+        
+        ex = assertThrows(IllegalArgumentException.class,
+            () -> service.convertirDivisas(new BigDecimal("100"), "USD", "   "));
+        assertEquals("El código de la moneda de destino es obligatorio", ex.getMessage());
+    }
+    
+    @Test
+    public void testLlamarApiConversion_ErrorResponse() {
+        // Simula que la API retorna un error (por ejemplo, debido a un código de moneda inválido).
+        String moneda = "ABC"; // Código inválido para este test.
+        String tipo = "DESTINO";
+        String jsonErrorResponse = "{\"error\": {\"code\": \"invalid_currency_codes\", \"message\": \"Invalid currency code.\"}}";
+        HttpClientErrorException exception = HttpClientErrorException.create(HttpStatus.BAD_REQUEST,
+                "Bad Request", null, jsonErrorResponse.getBytes(), null);
+        
+        when(restTemplate.getForObject(apiUrl + "&symbols=" + moneda, ExchangeRateApiResponse.class))
+            .thenThrow(exception);
+        
+        RuntimeException ex = assertThrows(RuntimeException.class,
+            () -> service.convertirDivisas(new BigDecimal("100"), "EUR", moneda));
+        // Se verifica que el mensaje de la excepción contenga la información generada en el método.
+        assertTrue(ex.getMessage().contains("El código de moneda DESTINO \"ABC\" no existe"));
+    }
+}

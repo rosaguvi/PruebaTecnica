@@ -1,0 +1,41 @@
+package com.bbva.servicioconversiondivisas.dtos;
+
+import java.math.BigDecimal;
+
+public class ConvertirDivisasRequest {
+
+	private BigDecimal monto;
+	private String monedaOrigen;
+	private String monedaDestino;
+
+	public ConvertirDivisasRequest(BigDecimal monto, String monedaOrigen, String monedaDestino) {
+		this.monto = monto;
+		this.monedaOrigen = monedaOrigen;
+		this.monedaDestino = monedaDestino;
+	}
+
+	public BigDecimal getMonto() {
+		return monto;
+	}
+
+	public void setMonto(BigDecimal monto) {
+		this.monto = monto;
+	}
+
+	public String getMonedaOrigen() {
+		return monedaOrigen;
+	}
+
+	public void setMonedaOrigen(String monedaOrigen) {
+		this.monedaOrigen = monedaOrigen;
+	}
+
+	public String getMonedaDestino() {
+		return monedaDestino;
+	}
+
+	public void setMonedaDestino(String monedaDestino) {
+		this.monedaDestino = monedaDestino;
+	}
+
+}

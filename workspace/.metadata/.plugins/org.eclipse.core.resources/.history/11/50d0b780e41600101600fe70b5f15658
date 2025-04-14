@@ -1,0 +1,5 @@
+package com.bbva.servicioautenticacion.dtos;
+
+public class LoginResponse {
+
+}

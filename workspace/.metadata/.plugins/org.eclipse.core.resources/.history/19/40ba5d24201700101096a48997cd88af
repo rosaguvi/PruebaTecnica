@@ -1,0 +1,144 @@
+package com.bbva.servicioconversiondivisas.controllers;
+
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasRequest;
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasResponse;
+import com.bbva.servicioconversiondivisas.services.ConvertirDivisasService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean ;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+
+@WebMvcTest(ConvertirDivisasController.class)
+@SpringBootTest
+@ActiveProfiles("test")  // Usa perfil sin seguridad
+public class ConvertirDivisasControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+
+
+	@MockBean
+    private ConvertirDivisasService service;
+
+    /**
+     * Prueba exitosa: se simula la respuesta del servicio y se verifica que se retorna un status 200
+     * con los valores esperados.
+     */
+    @Test
+    public void testConvertirDivisas_Success() throws Exception {
+    	// Configurar parametros de entrada
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.00"));
+        request.setMonedaOrigen("USD");
+        request.setMonedaDestino("COP");
+        
+        ConvertirDivisasResponse response = new ConvertirDivisasResponse();
+        response.setMontoOriginal(new BigDecimal("100.0"));
+        response.setMontoResultado(new BigDecimal("400000.0"));
+        response.setTasaConversion(new BigDecimal("4000.0"));
+        response.setFechaConversion(LocalDate.now());
+        
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+               .thenReturn(response);
+        
+        // Ejecutar y Validar
+        mockMvc.perform(post("/api/convertir")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.montoOriginal").value("100.0"))
+                .andExpect(jsonPath("$.montoResultado").value("400000.0"))
+                .andExpect(jsonPath("$.tasaConversion").value("4000.0"));
+    }
+
+    /**
+     * Prueba de validación: se envía un request con datos inválidos (por ejemplo, monedaOrigen vacío)
+     * y se verifica que se retorna un error 400.
+     */
+    @Test
+    public void testConvertirDivisas_ValidationError() throws Exception {
+    	// Configurar parametros de entrada: request sin monedaOrigen (campo obligatorio)
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.00"));
+        request.setMonedaOrigen("");  // vacio
+        request.setMonedaDestino("COP");
+        
+        String errorMessage = "El código de la moneda de origen es obligatorio";
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+               .thenThrow(new IllegalArgumentException("Error: " + errorMessage));
+        
+     // Ejecutar y Validar
+        mockMvc.perform(post("/api/convertir")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * Prueba en la que el servicio simula lanzar una excepción relacionada con errores en la API externa.
+     * Se espera que el controlador retorne un status 502 (Bad Gateway).
+     */
+    @Test
+    public void testConvertirDivisas_ApiExternalError() throws Exception {
+    	// Configurar parametros de entrada
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.00"));
+        request.setMonedaOrigen("USD");
+        request.setMonedaDestino("COP");
+        
+        String errorMessage = "API externa: Conexión rechazada";
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+               .thenThrow(new IllegalArgumentException("API externa: " + errorMessage));
+        
+        // Ejecutar y Validar
+        mockMvc.perform(post("/api/convertir")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadGateway())
+                .andExpect(content().string(Matchers.containsString("Error al conectar con la API externa")));
+    }
+
+    /**
+     * Prueba en la que el servicio simula lanzar una excepción con un mensaje de error general
+     * (no relacionado con la API externa), retornando un status 400.
+     */
+    @Test
+    public void testConvertirDivisas_BadRequestError() throws Exception {
+    	// Configurar parametros de entrada
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.00"));
+        request.setMonedaOrigen("USD");
+        request.setMonedaDestino("COP");
+        
+        String errorMessage = "Moneda inválida";
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+               .thenThrow(new IllegalArgumentException(errorMessage));
+        
+        // Ejecutar y Validar
+        mockMvc.perform(post("/api/convertir")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(Matchers.containsString("Error: " + errorMessage)));
+    }
+}

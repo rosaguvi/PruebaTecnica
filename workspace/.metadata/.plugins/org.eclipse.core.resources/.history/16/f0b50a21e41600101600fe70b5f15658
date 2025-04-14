@@ -1,0 +1,5 @@
+package com.bbva.servicioautenticacion.config;
+
+public class SecurityConfig {
+
+}

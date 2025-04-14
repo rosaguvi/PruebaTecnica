@@ -1,0 +1,34 @@
+package com.bbva.servicioautenticacion.controller;
+
+
+import com.bbva.servicioautenticacion.security.JwtTokenProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private JwtTokenProvider tokenProvider;
+
+    @PostMapping("/login")
+    public LoginResponse autenticarUsuario(@RequestBody LoginRequest loginRequest) {
+        // Realiza la autenticación usando las credenciales suministradas
+        Authentication authentication = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(
+                loginRequest.getUsername(),
+                loginRequest.getPassword()
+            )
+        );
+        // Si la autenticación es exitosa, se genera el token JWT
+        String token = tokenProvider.generarToken(loginRequest.getUsername());
+        return new LoginResponse(token);
+    }
+}

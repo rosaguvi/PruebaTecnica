@@ -1,0 +1,83 @@
+package com.bbva.servicioconversiondivisas.security;
+
+import java.util.Date;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.SignatureException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Component
+public class JwtTokenProvider {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
+
+    // En producción, deberías externalizar esta clave (por ejemplo, en application.properties o un vault)
+    private final String jwtSecret = "miClaveSecretaMuySegura";
+    
+    // Duración del token (en milisegundos), en este caso 1 hora
+    private final long jwtExpirationInMs = 3600000;
+
+    /**
+     * Genera un token JWT para el usuario especificado.
+     *
+     * @param username El nombre de usuario (u otra identificación) que se quiere incluir en el token.
+     * @return El token JWT como cadena.
+     */
+    public String generateToken(String username) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(SignatureAlgorithm.HS512, jwtSecret)
+                .compact();
+    }
+
+    /**
+     * Extrae el nombre de usuario (subject) del token JWT.
+     *
+     * @param token El token JWT.
+     * @return El nombre de usuario contenido en el token.
+     */
+    public String getUsernameFromJWT(String token) {
+        Claims claims = Jwts.parser()
+                .setSigningKey(jwtSecret)
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.getSubject();
+    }
+
+    /**
+     * Valida la integridad y vigencia del token JWT.
+     *
+     * @param token El token JWT a validar.
+     * @return True si el token es válido, false en caso contrario.
+     */
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token);
+            return true;
+        } catch (SignatureException ex) {
+            logger.error("Firma JWT inválida");
+        } catch (MalformedJwtException ex) {
+            logger.error("Token JWT mal formado");
+        } catch (ExpiredJwtException ex) {
+            logger.error("Token JWT expirado");
+        } catch (UnsupportedJwtException ex) {
+            logger.error("Token JWT no soportado");
+        } catch (IllegalArgumentException ex) {
+            logger.error("Token JWT vacío");
+        }
+        return false;
+    }
+}

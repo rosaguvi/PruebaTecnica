@@ -1,0 +1,55 @@
+package com.bbva.servicioautenticacion.config;
+
+
+import com.bbva.servicioautenticacion.security.JwtAuthenticationFilter;
+import com.bbva.servicioautenticacion.security.JwtAuthenticationEntryPoint;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+
+@Configuration
+public class SecurityConfig {
+
+    // Componente que maneja peticiones no autorizadas
+    @Autowired
+    private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+    // Definimos usuarios en memoria para la demostración
+    @Bean
+    public InMemoryUserDetailsManager userDetailsService() {
+        UserDetails usuario = User.withDefaultPasswordEncoder()
+                                  .username("usuario")
+                                  .password("clave")
+                                  .roles("USER")
+                                  .build();
+        return new InMemoryUserDetailsManager(usuario);
+    }
+
+    // Registro del filtro JWT
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter();
+    }
+
+    // Configuración de la cadena de filtros de seguridad
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeRequests(auth -> 
+                auth.antMatchers("/auth/login").permitAll()  // Ruta pública para autenticación
+                    .anyRequest().authenticated()
+            );
+        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+}

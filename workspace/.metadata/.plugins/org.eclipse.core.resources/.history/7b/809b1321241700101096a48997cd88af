@@ -1,0 +1,59 @@
+package com.bbva.servicioconversiondivisas.controllers;
+
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasRequest;
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasResponse;
+import com.bbva.servicioconversiondivisas.services.ConvertirDivisasService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.math.BigDecimal;
+
+@WebMvcTest(ConvertirDivisasController.class)
+public class ConvertirDivisasControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private ConvertirDivisasService service;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    @WithMockUser(username = "test-user") // Simula autenticación
+    void testConvertirExitoso() throws Exception {
+        // Arrange
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.0"));
+        request.setMonedaOrigen("USD");
+        request.setMonedaDestino("COP");
+
+        ConvertirDivisasResponse mockResponse = new ConvertirDivisasResponse();
+        mockResponse.setMontoOriginal(new BigDecimal("100.0"));
+        mockResponse.setMontoResultado(new BigDecimal("400000.0"));
+        mockResponse.setTasaConversion(new BigDecimal("4000.0"));
+        mockResponse.setFechaConversion(java.time.LocalDate.now());
+
+        Mockito.when(service.convertirDivisas(100.0, "USD", "COP")).thenReturn(mockResponse);
+
+        // Act + Assert
+        mockMvc.perform(post("/api/convertir")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.montoConvertido").value(400000.0));
+    }
+}

@@ -1,0 +1,5 @@
+package com.bbva.servicioconversiondivisas.exception;
+
+public class GlobalExceptionHandler {
+
+}

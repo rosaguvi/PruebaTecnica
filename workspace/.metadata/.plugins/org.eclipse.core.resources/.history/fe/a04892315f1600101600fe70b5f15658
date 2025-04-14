@@ -1,0 +1,29 @@
+package com.bbva.servicioconversiondivisas.controllers;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasRequest;
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasResponse;
+import com.bbva.servicioconversiondivisas.services.ConvertirDivisasService;
+
+@RestController
+@RequestMapping("/api/convertir")
+public class ConvertirDivisasController {
+
+	@Autowired
+	private ConvertirDivisasService service ;
+	
+    @PostMapping
+    public ConvertirDivisasResponse convertir(@RequestBody ConvertirDivisasRequest request) {
+        if (request.getMonto() == null || request.getMonedaOrigen() == null || request.getMonedaDestino() == null) {
+            throw new IllegalArgumentException("Faltan parámetros obligatorios.");
+        }
+        
+        return service.convertirDivisas(request.getMonto(), request.getMonedaOrigen(), request.getMonedaDestino());
+    }
+}
+

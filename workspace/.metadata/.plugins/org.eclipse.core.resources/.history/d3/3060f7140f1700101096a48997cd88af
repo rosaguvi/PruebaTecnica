@@ -1,0 +1,8 @@
+package com.bbva.servicioautenticacion.security;
+
+public class Snippet {
+	public static void main(String[] args) {
+		                .requestMatchers("/auth/otros/**").authenticated()
+	}
+}
+

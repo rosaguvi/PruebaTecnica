@@ -1,0 +1,23 @@
+package com.bbva.servicioautenticacion.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+
+@Configuration
+public class InMemorySecurityConfig {
+
+    @Bean
+    public InMemoryUserDetailsManager inMemoryUserDetailsManager() {
+        // Aquí se define el usuario de prueba:
+        UserDetails usuario = User.withDefaultPasswordEncoder() // Método para pruebas, no usar en producción
+                .username("usuario")
+                .password("clave")
+                .roles("USER")
+                .build();
+
+        return new InMemoryUserDetailsManager(usuario);
+    }
+}

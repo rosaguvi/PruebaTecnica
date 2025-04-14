@@ -1,0 +1,5 @@
+package com.bbva.servicioconversiondivisas.dtos;
+
+public class Error {
+
+}

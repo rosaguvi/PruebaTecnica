@@ -1,0 +1,12 @@
+spring.application.name=servicio-conversion-divisas
+api.exchangerates.url=http://api.exchangeratesapi.io/v1/latest
+api.exchangerates.access_key=ae5b80112f70c3c2a5d13a2b5f955a6e
+api.divisa.base=EUR
+server.port=8084
+
+#validacion de token
+spring.security.jwt.jwtFilter.secret = eyJhbGciOiJIUzUxMiJ9eyJzdWIiOiJ1c3VhcmlvIiwiaWF0IjoxNzQ0NDAzNzU4LCJleHAiOjE3NDQ0MDczNTh9
+
+#swagger
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html

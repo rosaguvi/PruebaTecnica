@@ -1,0 +1,50 @@
+package com.bbva.servicioconversiondivisas.security;
+
+import static org.springframework.security.config.Customizer.withDefaults;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    /**
+     * Configura la cadena de filtros de seguridad.
+     * <p>
+     * Esta configuración desactiva CSRF para simplificar las pruebas (en producción se recomienda evaluarla) 
+     * y requiere autenticación para el endpoint <code>/api/convertir</code>, mientras que permite el acceso libre a 
+     * cualquier otra solicitud.
+     * </p>
+     *
+     * @param http HttpSecurity proporcionado por Spring Security.
+     * @return Un objeto SecurityFilterChain con la configuración aplicada.
+     * @throws Exception Si ocurre algún error al construir la cadena de filtros.
+     */
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/convertir/**").authenticated()
+                .anyRequest().permitAll()
+            ).oauth2ResourceServer(oauth2 -> oauth2.jwt());
+           // .httpBasic(withDefaults());
+        
+        return http.build();
+    }
+
+
+    /**
+     * Bean para el proveedor de tokens JWT, se puede utilizar para generar y validar tokens.
+     *
+     * @return una instancia de JwtTokenProvider.
+     */
+    @Bean
+    public JwtTokenProvider jwtTokenProvider() {
+        return new JwtTokenProvider();
+    }
+}

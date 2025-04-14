@@ -1,0 +1,5 @@
+package com.bbva.servicioautenticacion.controller;
+
+public class AuthController {
+
+}

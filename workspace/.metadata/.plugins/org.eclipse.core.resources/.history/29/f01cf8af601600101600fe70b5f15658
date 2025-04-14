@@ -1,0 +1,129 @@
+package com.bbva.servicioconversiondivisas.services;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasResponse;
+import com.bbva.servicioconversiondivisas.dtos.ExchangeRateApiResponse;
+
+@Service
+public class ConvertirDivisasService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ConvertirDivisasService.class);
+
+    @Value("${api.exchangerates.url}")
+    private String apiUrl;
+
+    @Value("${api.divisa.base}")
+    private String divisaBase;
+
+    private final RestTemplate restTemplate;
+
+    public ConvertirDivisasService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    /**
+     * Convierte un monto entre dos monedas validando que los parámetros sean correctos.
+     * 
+     * @param monto         El monto a convertir (no nulo y mayor que cero).
+     * @param monedaOrigen  Código ISO de la moneda origen (no nulo ni vacío).
+     * @param monedaDestino Código ISO de la moneda destino (no nulo ni vacío).
+     * @return ConvertirDivisasResponse con la fecha de conversión, tasa y montos.
+     * @throws IllegalArgumentException Si algún parámetro es inválido o la moneda no se encuentra.
+     */
+    public ConvertirDivisasResponse convertirDivisas(BigDecimal monto, String monedaOrigen, String monedaDestino) {
+        // Validaciones básicas de entrada
+        if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor que cero.");
+        }
+        if (monedaOrigen == null || monedaOrigen.trim().isEmpty()) {
+            throw new IllegalArgumentException("El código de la moneda de origen es obligatorio.");
+        }
+        if (monedaDestino == null || monedaDestino.trim().isEmpty()) {
+            throw new IllegalArgumentException("El código de la moneda de destino es obligatorio.");
+        }
+
+        logger.info("Iniciando conversión de {} {} a {}", monto, monedaOrigen, monedaDestino);
+
+        ConvertirDivisasResponse response = new ConvertirDivisasResponse();
+        response.setFechaConversion(LocalDate.now());
+
+        try {
+            if (monedaOrigen.equalsIgnoreCase(divisaBase)) {
+                // Si la moneda de origen es la divisa base, se obtiene la tasa para la moneda destino.
+                BigDecimal tasaConversion = llamarApiConversion(monedaDestino);
+                BigDecimal montoResultado = monto.multiply(tasaConversion).setScale(2, RoundingMode.HALF_UP);
+                response.setTasaConversion(tasaConversion);
+                response.setMontoOriginal(monto);
+                response.setMontoResultado(montoResultado);
+            } else if (monedaDestino.equalsIgnoreCase(divisaBase)) {
+                // Si la moneda destino es la divisa base, se calcula la inversa de la tasa de la moneda de origen.
+                BigDecimal tasaConversionOrigen = llamarApiConversion(monedaOrigen);
+                BigDecimal tasaConversion = BigDecimal.ONE.divide(tasaConversionOrigen, 16, RoundingMode.HALF_UP);
+                BigDecimal montoResultado = monto.multiply(tasaConversion).setScale(2, RoundingMode.HALF_UP);
+                response.setTasaConversion(tasaConversion);
+                response.setMontoOriginal(monto);
+                response.setMontoResultado(montoResultado);
+            } else {
+                // Conversión indirecta: monedaOrigen -> divisaBase -> monedaDestino.
+                BigDecimal tasaConversionOrigen = llamarApiConversion(monedaOrigen);
+                BigDecimal tasaConversionDestino = llamarApiConversion(monedaDestino);
+                BigDecimal tasaConversion = BigDecimal.ONE
+                        .divide(tasaConversionOrigen, 16, RoundingMode.HALF_UP)
+                        .multiply(tasaConversionDestino);
+                BigDecimal montoResultado = monto.multiply(tasaConversion).setScale(2, RoundingMode.HALF_UP);
+                response.setTasaConversion(tasaConversion);
+                response.setMontoOriginal(monto);
+                response.setMontoResultado(montoResultado);
+            }
+            logger.info("Conversión exitosa: {} {} equivale a {} {}", monto, monedaOrigen, 
+                        response.getMontoResultado(), monedaDestino);
+            return response;
+        } catch (Exception e) {
+            logger.error("Error al convertir divisas: {}", e.getMessage(), e);
+            throw new IllegalArgumentException("Error en la ejecución del servicio: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Llama a la API externa para obtener la tasa de conversión de una moneda.
+     * 
+     * @param moneda Código de la moneda para la cual se busca la tasa.
+     * @return La tasa de conversión obtenida de la API.
+     * @throws IllegalArgumentException si no se obtiene una respuesta válida o la moneda no se encuentra.
+     */
+    private BigDecimal llamarApiConversion(String moneda) {
+        try {
+            String url = apiUrl + "&symbols=" + moneda;
+            logger.info("Llamando a la API externa con URL: {}", url);
+            ExchangeRateApiResponse apiResponse = restTemplate.getForObject(url, ExchangeRateApiResponse.class);
+
+            if (apiResponse == null) {
+                throw new IllegalArgumentException("No se pudo obtener la tasa de conversión. Respuesta nula.");
+            }
+            if (apiResponse.getError() != null) {
+                String errorCode = apiResponse.getError().get("code");
+                throw new IllegalArgumentException("Error en la API externa. Código: " + errorCode);
+            }
+
+            Map<String, BigDecimal> rates = apiResponse.getRates();
+            if (!rates.containsKey(moneda)) {
+                throw new IllegalArgumentException("Código de moneda inválido: " + moneda);
+            }
+            return rates.get(moneda);
+        } catch (HttpClientErrorException e) {
+            logger.error("Error al conectar con la API externa: {}", e.getMessage(), e);
+            throw new IllegalArgumentException("Error al conectar con la API externa", e);
+        }
+    }
+}

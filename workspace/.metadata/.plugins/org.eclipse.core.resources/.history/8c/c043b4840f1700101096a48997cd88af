@@ -1,0 +1,40 @@
+package com.bbva.servicioconversiondivisas.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Autowired
+    private JwtFilter jwtFilter;
+    
+    /**
+     * Configura la cadena de filtros de seguridad para que todas las peticiones sean autenticadas
+     * mediante el mecanismo JWT.
+     *
+     * @param http Instancia de HttpSecurity para configurar la seguridad.
+     * @return La SecurityFilterChain configurada.
+     * @throws Exception Si ocurre algún error durante la configuración.
+     */
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            // Deshabilita CSRF (si no es necesario para tu API)
+            .csrf(csrf -> csrf.disable())
+            // Todas las peticiones requieren autenticación
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().authenticated()
+            )
+            // Configura el resource server para validación de JWT con la configuración por defecto
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+}

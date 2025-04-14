@@ -1,0 +1,74 @@
+package com.bbva.servicioconversiondivisas.controllers;
+
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasRequest;
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasResponse;
+import com.bbva.servicioconversiondivisas.services.ConvertirDivisasService;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import java.math.BigDecimal;
+
+
+public class ConvertirDivisasControllerTest {
+
+	@InjectMocks
+	ConvertirDivisasController convertirDivisasController;
+	
+	@Mock
+	private ConvertirDivisasService service;
+	
+
+	@BeforeEach
+	public void init() {
+		MockitoAnnotations.openMocks(this);
+	}
+	
+    /**
+     * Prueba exitosa: se simula la respuesta del servicio y se verifica que se retorna un status 200
+     * con los valores esperados.
+     */
+    @Test
+    public void testConvertirDivisas_Success() throws Exception {
+        // Arrange
+    	
+    	MockHttpServletRequest request = new MockHttpServletRequest();
+		RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+		
+        ConvertirDivisasRequest requestDivisas = new ConvertirDivisasRequest();
+        requestDivisas.setMonto(new BigDecimal("100.0"));
+        requestDivisas.setMonedaOrigen("USD");
+        requestDivisas.setMonedaDestino("COP");
+
+        ConvertirDivisasResponse mockResponse = new ConvertirDivisasResponse();
+        mockResponse.setMontoOriginal(new BigDecimal("100.0"));
+        mockResponse.setMontoResultado(new BigDecimal("400000.0"));
+        mockResponse.setTasaConversion(new BigDecimal("4000.0"));
+        mockResponse.setFechaConversion(java.time.LocalDate.now());
+
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+        	.thenReturn(mockResponse);
+
+        ResponseEntity<?> respuestaConvertir = convertirDivisasController.convertir(requestDivisas);
+        ConvertirDivisasResponse convertirDivisasResponse = (ConvertirDivisasResponse) respuestaConvertir.getBody();
+
+        // Validar
+        assertThat(convertirDivisasResponse).isNotNull();
+        assertThat(convertirDivisasResponse.getMontoResultado()).isEqualTo("400000.0");
+        assertThat(convertirDivisasResponse.getTasaConversion()).isEqualTo("4000.0");
+        assertThat(respuestaConvertir.getStatusCode()).isEqualTo(HttpStatus.OK);
+        
+    }
+}

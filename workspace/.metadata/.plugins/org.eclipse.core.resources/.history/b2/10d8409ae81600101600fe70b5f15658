@@ -1,0 +1,2 @@
+spring.application.name=servicio-autenticacion
+spring.main.allow-bean-definition-overriding=true

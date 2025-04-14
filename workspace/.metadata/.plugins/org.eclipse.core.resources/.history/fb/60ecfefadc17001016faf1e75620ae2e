@@ -1,0 +1,136 @@
+package com.bbva.servicioconversiondivisas.controllers;
+
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasRequest;
+import com.bbva.servicioconversiondivisas.dtos.ConvertirDivisasResponse;
+import com.bbva.servicioconversiondivisas.services.ConvertirDivisasService;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import java.math.BigDecimal;
+
+
+public class ConvertirDivisasControllerTest {
+
+	@InjectMocks
+	ConvertirDivisasController convertirDivisasController;
+	
+	@Mock
+	private ConvertirDivisasService service;
+	
+
+	@BeforeEach
+	public void init() {
+		MockitoAnnotations.openMocks(this);
+	}
+	
+    /**
+     * Prueba exitosa: se simula la respuesta del servicio y se verifica que se retorna un status 200
+     * con los valores esperados.
+     */
+    @Test
+    public void testConvertirDivisas_Success() throws Exception {
+        ConvertirDivisasRequest requestDivisas = new ConvertirDivisasRequest();
+        requestDivisas.setMonto(new BigDecimal("100.0"));
+        requestDivisas.setMonedaOrigen("USD");
+        requestDivisas.setMonedaDestino("COP");
+
+        ConvertirDivisasResponse mockResponse = new ConvertirDivisasResponse();
+        mockResponse.setMontoOriginal(new BigDecimal("100.0"));
+        mockResponse.setMontoResultado(new BigDecimal("400000.0"));
+        mockResponse.setTasaConversion(new BigDecimal("4000.0"));
+        mockResponse.setFechaConversion(java.time.LocalDate.now());
+
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+        	.thenReturn(mockResponse);
+
+        ResponseEntity<?> respuestaConvertir = convertirDivisasController.convertir(requestDivisas);
+        ConvertirDivisasResponse convertirDivisasResponse = (ConvertirDivisasResponse) respuestaConvertir.getBody();
+
+        // Validar
+        assertThat(convertirDivisasResponse).isNotNull();
+        assertThat(convertirDivisasResponse.getMontoResultado()).isEqualTo("400000.0");
+        assertThat(convertirDivisasResponse.getTasaConversion()).isEqualTo("4000.0");
+        assertThat(respuestaConvertir.getStatusCode()).isEqualTo(HttpStatus.OK);
+        
+    }
+    
+
+    /**
+     * Prueba de validación: se envía un request con datos inválidos (por ejemplo, monedaOrigen vacío)
+     * y se verifica que se retorna un error 400.
+     */
+    @Test
+    public void testConvertirDivisas_ValidationError() throws Exception {
+    	// Configurar parametros de entrada: request sin monedaOrigen (campo obligatorio)
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.00"));
+        request.setMonedaOrigen("");  // vacio
+        request.setMonedaDestino("COP");
+        
+        String errorMessage = "El código de la moneda de origen es obligatorio";
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+               .thenThrow(new IllegalArgumentException("Error: " + errorMessage));
+        
+        ResponseEntity<?> respuestaConvertir = convertirDivisasController.convertir(request);
+       
+        // Validar 
+        assertThat(respuestaConvertir.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+    }
+    
+    /**
+     * Prueba en la que el servicio simula lanzar una excepción relacionada con errores en la API externa.
+     * Se espera que el controlador retorne un status 502 (Bad Gateway).
+     */
+    @Test
+    public void testConvertirDivisas_ApiExternalError() throws Exception {
+    	// Configurar parametros de entrada
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.00"));
+        request.setMonedaOrigen("USD");
+        request.setMonedaDestino("COP");
+        
+        String errorMessage = "API externa: Conexión rechazada";
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+               .thenThrow(new IllegalArgumentException("API externa: " + errorMessage));
+        
+        ResponseEntity<?> respuestaConvertir = convertirDivisasController.convertir(request);
+        String mensajeError = (String) respuestaConvertir.getBody();
+
+        // Validar
+        assertThat(respuestaConvertir.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(mensajeError).contains("Error al conectar con la API externa");      
+    }
+    
+    /**
+     * Prueba en la que el servicio simula lanzar una excepción con un mensaje de error general
+     * (no relacionado con la API externa), retornando un status 400.
+     */
+    @Test
+    public void testConvertirDivisas_BadRequestError() throws Exception {
+    	// Configurar parametros de entrada
+        ConvertirDivisasRequest request = new ConvertirDivisasRequest();
+        request.setMonto(new BigDecimal("100.00"));
+        request.setMonedaOrigen("USD");
+        request.setMonedaDestino("COP");
+        
+        String errorMessage = "Moneda inválida";
+        Mockito.when(service.convertirDivisas(any(BigDecimal.class), anyString(), anyString()))
+               .thenThrow(new IllegalArgumentException(errorMessage));
+        
+        // Ejecutar y Validar
+        ResponseEntity<?> respuestaConvertir = convertirDivisasController.convertir(request);
+        String mensajeError = (String) respuestaConvertir.getBody();
+        assertThat(respuestaConvertir.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensajeError).contains("Error: " + errorMessage);   
+    }
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<item key="hasShownOverlayPopupBefore" value="true"/>
+	<section name="java.lang.Class">
+		<item key="replaceBarOpen" value="false"/>
+		<list key="findhistory">
+			<item value="ConvertirDivisasResponse"/>
+			<item value="apiUrl"/>
+			<item value="spring"/>
+			<item value="swager"/>
+			<item value="com.bbva.servicioautenticacion"/>
+			<item value="testLlamarApiConversion"/>
+			<item value="spring-boot-starter-test"/>
+			<item value="ConvertirDivisasController"/>
+			<item value="validarToken"/>
+			<item value="doFilterInternal"/>
+			<item value="spring-boot-starter-web"/>
+			<item value="text"/>
+			<item value="@Slf4j"/>
+			<item value="handleException"/>
+			<item value="ResponseEntity"/>
+		</list>
+	</section>
+</section>

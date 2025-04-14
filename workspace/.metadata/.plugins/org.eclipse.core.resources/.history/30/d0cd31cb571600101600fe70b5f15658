@@ -1,0 +1,87 @@
+package com.bbva.servicioconversiondivisas.services;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+
+import com.bbva.servicioconversiondivisas.dtos.ConversionDivisasResponse;
+import com.bbva.servicioconversiondivisas.dtos.ExchangeRateApiResponse;
+
+@Service
+public class ConversionDivisasService {
+
+	@Value("${api.exchangerates.url}")
+	private String apiUrl;
+
+	@Value("${api.divisa.base}")
+	private String divisaBase;
+
+	private final RestTemplate restTemplate;
+
+	public ConversionDivisasService(RestTemplate restTemplate) {
+		this.restTemplate = restTemplate;
+	}
+
+	public ConversionDivisasResponse convertirDivisas(BigDecimal monto, String monedaOrigen, String monedaDestino) {
+		try {
+			ConversionDivisasResponse response = new ConversionDivisasResponse();
+			response.setFechaConversion(LocalDate.now());
+			if (monedaOrigen == divisaBase) {
+				BigDecimal tasaConversion = llamarApiConversion(monedaDestino);
+				BigDecimal montoResultado = monto.multiply(tasaConversion);
+				response.setTasaConversion(tasaConversion);
+				response.setMontoOriginal(monto);
+				response.setMontoResultado(montoResultado);
+			} else if (monedaDestino == divisaBase) {
+				BigDecimal num = new BigDecimal(1);
+				BigDecimal tasaConversion = num.divide(llamarApiConversion(monedaOrigen));
+				BigDecimal montoResultado = monto.multiply(tasaConversion);
+				response.setTasaConversion(tasaConversion);
+				response.setMontoOriginal(monto);
+				response.setMontoResultado(montoResultado);
+			} else {
+				BigDecimal num = new BigDecimal(1);
+				BigDecimal tasaConversion = num.divide(llamarApiConversion(monedaOrigen));
+				tasaConversion = tasaConversion.multiply(llamarApiConversion(monedaDestino));
+				BigDecimal montoResultado = monto.multiply(tasaConversion);
+				response.setTasaConversion(tasaConversion);
+				response.setMontoOriginal(monto);
+				response.setMontoResultado(montoResultado);
+			}
+			return response;
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Error en la ejecución del servicio", e);
+		}
+
+	}
+
+	private BigDecimal llamarApiConversion(String monedaDestino) {
+
+		try {
+			String url = apiUrl + "&symbols=" + monedaDestino;
+			ExchangeRateApiResponse apiResponse = restTemplate.getForObject(url, ExchangeRateApiResponse.class);
+
+			if (apiResponse == null || apiResponse.getError()!= null) {
+
+				throw new IllegalArgumentException("No se pudo obtener la tasa de conversión." + apiResponse.getError().get("code")););
+			}
+
+			Map<String, BigDecimal> rates = (Map<String, BigDecimal>) apiResponse.get("rates");
+			if (!rates.containsKey(monedaDestino)) {
+				throw new IllegalArgumentException("Código de moneda de destino inválido.");
+			}
+
+			return rates.get(monedaDestino);
+
+		} catch (HttpClientErrorException e) {
+			throw new IllegalArgumentException("Error al conectar con la API externa", e);
+		}
+
+	}
+
+}

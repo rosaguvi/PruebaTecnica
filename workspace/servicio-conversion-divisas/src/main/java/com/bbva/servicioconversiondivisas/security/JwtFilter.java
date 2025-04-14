@@ -1,0 +1,77 @@
+package com.bbva.servicioconversiondivisas.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+
+@Component
+public class JwtFilter extends OncePerRequestFilter {
+
+    @Value("${spring.security.jwt.jwtFilter.secret}")
+    private String secretKey;
+    
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+
+        String path = request.getRequestURI();
+        
+        if (    path.startsWith("/v3/api-docs") ||
+                path.startsWith("/swagger-ui") ||
+                path.equals("/swagger-ui.html")) {
+                filterChain.doFilter(request, response);
+                return;
+        }
+        
+        String authorizationHeader = request.getHeader("Authorization");
+
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String token = authorizationHeader.substring(7);
+
+            try {
+            	
+            	JwtParser parser = Jwts.parserBuilder()
+            		    .setSigningKey(secretKey)
+            		    .build();
+
+            	Claims claims = parser
+            		    .parseClaimsJws(token)
+            		    .getBody();     
+
+                String username = claims.getSubject();
+                String role = claims.get("role", String.class);
+
+                // Añadir autenticación al contexto de seguridad
+                UsernamePasswordAuthenticationToken authToken = 
+                    new UsernamePasswordAuthenticationToken(username, null,
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
+
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                request.setAttribute("claims", claims);
+            } catch (Exception e) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
+        } else {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}

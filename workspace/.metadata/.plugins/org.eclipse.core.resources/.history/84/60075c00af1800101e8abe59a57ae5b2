@@ -1,0 +1,57 @@
+package com.bbva.servicioconversiondivisas.dtos;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+public class ConvertirDivisasResponse {
+
+	private LocalDate fechaConversion;
+	private BigDecimal tasaConversion;
+	private BigDecimal montoOriginal;
+	private BigDecimal montoResultado;
+
+	
+	public ConvertirDivisasResponse(LocalDate fechaConversion, BigDecimal tasaConversion, BigDecimal montoOriginal,
+			BigDecimal montoResultado) {
+		this.fechaConversion = fechaConversion;
+		this.tasaConversion = tasaConversion;
+		this.montoOriginal = montoOriginal;
+		this.montoResultado = montoResultado;
+	}
+
+	public ConvertirDivisasResponse() {
+	}
+
+	public LocalDate getFechaConversion() {
+		return fechaConversion;
+	}
+
+	public void setFechaConversion(LocalDate fechaConversion) {
+		this.fechaConversion = fechaConversion;
+	}
+
+	public BigDecimal getTasaConversion() {
+		return tasaConversion;
+	}
+
+	public void setTasaConversion(BigDecimal tasaConversion) {
+		this.tasaConversion = tasaConversion;
+	}
+
+	public BigDecimal getMontoOriginal() {
+		return montoOriginal;
+	}
+
+	public void setMontoOriginal(BigDecimal montoOriginal) {
+		this.montoOriginal = montoOriginal;
+	}
+
+	public BigDecimal getMontoResultado() {
+		return montoResultado;
+	}
+
+	public void setMontoResultado(BigDecimal montoResultado) {
+		this.montoResultado = montoResultado;
+	}
+
+}

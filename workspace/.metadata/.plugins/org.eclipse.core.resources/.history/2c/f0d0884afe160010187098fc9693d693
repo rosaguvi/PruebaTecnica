@@ -1,0 +1,25 @@
+package com.bbva.servicioconversiondivisas.config;
+
+import javax.crypto.spec.SecretKeySpec;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+
+@Configuration
+public class JwtDecoderConfig {
+
+    // Define la clave secreta; lo ideal es extraerla de una propiedad o vault en producción
+	   @Value("${spring.security.oauth2.resourceserver.jwt.secret}")
+	   private String secretKey;
+	   
+    
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        // Crea un SecretKeySpec a partir de la clave y el algoritmo HMAC con SHA-256.
+        SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(), "HMACSHA256");
+        return NimbusJwtDecoder.withSecretKey(secretKeySpec).build();
+    }
+}

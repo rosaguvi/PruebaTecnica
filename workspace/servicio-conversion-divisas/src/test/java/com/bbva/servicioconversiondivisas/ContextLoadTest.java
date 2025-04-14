@@ -1,0 +1,25 @@
+package com.bbva.servicioconversiondivisas;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
+import org.springframework.beans.factory.annotation.Autowired;
+
+@SpringBootTest
+public class ContextLoadTest {
+
+    @Autowired
+    private ApplicationContext context;
+
+    @Test
+    public void whenContextLoads_thenBeansAreRegistered() {
+        // Comprueba que el controlador está en el contexto.
+        assertThat(context.getBean("convertirDivisasController")).isNotNull();
+        // Comprueba que el servicio está en el contexto.
+        assertThat(context.getBean("convertirDivisasService")).isNotNull();
+        // comprueba el Global Exception Handler está en el contexto.
+         assertThat(context.getBean("globalExceptionHandler")).isNotNull();
+    }
+}
