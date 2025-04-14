@@ -44,21 +44,26 @@ chmod +x run_all.sh
 
 Una vez desplegados, accede a las URLs de Swagger para ver y probar los endpoints disponibles.
 
----
+ Ejemplo prueba login
 
-## 🆙 Cómo subir a GitHub
+    {
+        "username": "usuario",
+        "password": "clavedeusuaro"
+    }
 
-1. Crea un nuevo repositorio en GitHub.
-2. Desde la carpeta del proyecto, ejecuta:
 
-```bash
-git init
-git add .
-git commit -m "Versión inicial con Docker y Swagger"
-git remote add origin https://github.com/TU_USUARIO/NOMBRE_REPO.git
-git push -u origin master
-```
+ Ejemplo prueba convertirDivisa
 
+    {
+        "monto": 100.0,
+        "monedaOrigen": "COP",
+        "monedaDestino": "USD"
+    }
+
+    se de be adicionar autenticación 
+     auth Type: Bearer Token
+
+     Para esto se usa el token que genera el serviico de autenticación.
 ---
 
 📫 Para dudas o sugerencias, ¡bienvenido a contribuir!
